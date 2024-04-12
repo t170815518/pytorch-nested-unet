@@ -9,6 +9,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
 import yaml
+import json
 import albumentations
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose, OneOf
@@ -283,6 +284,14 @@ def main():
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
         transform=val_transform)
+
+    # store the train and test indices for evaluation
+    split_info = {
+            'train_img_ids': train_img_ids,
+            'val_img_ids': val_img_ids,
+            }
+    with open('models/%s/split_info.json' % config['name'], 'w') as f:
+        json.dump(split_info, f)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
