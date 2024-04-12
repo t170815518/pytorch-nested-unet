@@ -6,6 +6,8 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 import yaml
+from PIL import Image
+import albumentations
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
 from sklearn.model_selection import train_test_split
@@ -50,7 +52,7 @@ def main():
     model = model.cuda()
 
     # Data loading code
-    img_ids = glob(os.path.join('inputs', config['dataset'], 'images', '*' + config['img_ext']))
+    img_ids = glob(os.path.join('inputs', config['dataset'], 'JPEGImages', '*' + config['img_ext']))
     img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_ids]
 
     _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
@@ -60,14 +62,14 @@ def main():
     model.eval()
 
     val_transform = Compose([
-        transforms.Resize(config['input_h'], config['input_w']),
-        transforms.Normalize(),
+        albumentations.Resize(config['input_h'], config['input_w']),
+        albumentations.Normalize(),
     ])
 
     val_dataset = Dataset(
         img_ids=val_img_ids,
-        img_dir=os.path.join('inputs', config['dataset'], 'images'),
-        mask_dir=os.path.join('inputs', config['dataset'], 'masks'),
+        img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
+        mask_dir=os.path.join('inputs', config['dataset'], 'Annotations'),
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
@@ -101,8 +103,10 @@ def main():
 
             for i in range(len(output)):
                 for c in range(config['num_classes']):
-                    cv2.imwrite(os.path.join('outputs', config['name'], str(c), meta['img_id'][i] + '.jpg'),
-                                (output[i, c] * 255).astype('uint8'))
+                    export_path = os.path.join('outputs', config['name'], str(c), meta['img_id'][i] + '.jpg')
+                    img_array = (output[i, c] * 255).astype('uint8')
+                    img = Image.fromarray(img_array)
+                    img.save(export_path)
 
     print('IoU: %.4f' % avg_meter.avg)
 
