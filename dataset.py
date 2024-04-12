@@ -75,7 +75,7 @@ class Dataset(torch.utils.data.Dataset):
         
         img = img.astype('float32') / 255
         img = img.transpose(2, 0, 1)[:1, :, :]
-        mask = mask.astype('float32') / 255
+        mask = mask.astype('float32')
         mask = mask.transpose(2, 0, 1)
         
         return img, mask, {'img_id': img_id}
