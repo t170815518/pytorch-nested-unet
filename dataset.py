@@ -1,6 +1,7 @@
 import os
 
 import cv2
+from PIL import Image
 import numpy as np
 import torch
 import torch.utils.data
@@ -55,21 +56,25 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         img_id = self.img_ids[idx]
         
-        img = cv2.imread(os.path.join(self.img_dir, img_id + self.img_ext))
+        img = np.array(Image.open(os.path.join(self.img_dir, img_id + self.img_ext)))
 
         mask = []
         for i in range(self.num_classes):
-            mask.append(cv2.imread(os.path.join(self.mask_dir, str(i),
-                        img_id + self.mask_ext), cv2.IMREAD_GRAYSCALE)[..., None])
+            mask_path = os.path.join(self.mask_dir, img_id + self.mask_ext) # e.g., inputs/矿石图像分割/Annotations/1563.png
+            assert os.path.exists(mask_path), f'Mask path {mask_path} does not exist.'
+            # m = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+            m = np.array(Image.open(mask_path))
+            mask.append(m[..., None])
         mask = np.dstack(mask)
 
         if self.transform is not None:
-            augmented = self.transform(image=img, mask=mask)
+            img_3channel = np.repeat(img[..., None], 3, axis=-1)
+            augmented = self.transform(image=img_3channel, mask=mask)
             img = augmented['image']
             mask = augmented['mask']
         
         img = img.astype('float32') / 255
-        img = img.transpose(2, 0, 1)
+        img = img.transpose(2, 0, 1)[:1, :, :]
         mask = mask.astype('float32') / 255
         mask = mask.transpose(2, 0, 1)
         
