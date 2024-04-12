@@ -9,6 +9,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
 import yaml
+import albumentations
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose, OneOf
 from sklearn.model_selection import train_test_split
@@ -244,40 +245,40 @@ def main():
         raise NotImplementedError
 
     # Data loading code
-    img_ids = glob(os.path.join('inputs', config['dataset'], 'images', '*' + config['img_ext']))
+    img_ids = glob(os.path.join('inputs', config['dataset'], 'JPEGImages', '*' + config['img_ext']))
     img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_ids]
 
     train_img_ids, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
 
     train_transform = Compose([
-        transforms.RandomRotate90(),
-        transforms.Flip(),
+        albumentations.RandomRotate90(),
+        albumentations.Flip(),
         OneOf([
-            transforms.HueSaturationValue(),
-            transforms.RandomBrightness(),
-            transforms.RandomContrast(),
+            albumentations.HueSaturationValue(),
+            albumentations.RandomBrightness(),
+            albumentations.RandomContrast(),
         ], p=1),
-        transforms.Resize(config['input_h'], config['input_w']),
-        transforms.Normalize(),
+        albumentations.Resize(config['input_h'], config['input_w']),
+        albumentations.Normalize(),
     ])
 
     val_transform = Compose([
-        transforms.Resize(config['input_h'], config['input_w']),
-        transforms.Normalize(),
+        albumentations.Resize(config['input_h'], config['input_w']),
+        albumentations.Normalize(),
     ])
 
     train_dataset = Dataset(
         img_ids=train_img_ids,
-        img_dir=os.path.join('inputs', config['dataset'], 'images'),
-        mask_dir=os.path.join('inputs', config['dataset'], 'masks'),
+        img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
+        mask_dir=os.path.join('inputs', config['dataset'], 'Annotations'),
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
         transform=train_transform)
     val_dataset = Dataset(
         img_ids=val_img_ids,
-        img_dir=os.path.join('inputs', config['dataset'], 'images'),
-        mask_dir=os.path.join('inputs', config['dataset'], 'masks'),
+        img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
+        mask_dir=os.path.join('inputs', config['dataset'], 'Annotations'),
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
