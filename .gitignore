@@ -146,3 +146,5 @@ models/*
 outputs/*
 
 !gitkeep
+.idea/
+矿石图像分割/

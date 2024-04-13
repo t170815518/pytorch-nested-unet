@@ -2,7 +2,9 @@ import argparse
 import os
 from glob import glob
 
+import PIL.Image
 import cv2
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import yaml
@@ -19,6 +21,70 @@ from metrics import iou_score
 from utils import AverageMeter
 
 
+def load_model(model_name):
+    with open('models/%s/config.yml' % model_name, 'r') as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    print('-' * 20)
+    for key in config.keys():
+        print('%s: %s' % (key, str(config[key])))
+    print('-' * 20)
+    cudnn.benchmark = True
+    # create model
+    print("=> creating model %s" % config['arch'])
+    model = archs.__dict__[config['arch']](config['num_classes'],
+                                           config['input_channels'],
+                                           config['deep_supervision'])
+    model = model.cuda()
+    model.load_state_dict(torch.load('models/%s/model.pth' %
+                                     config['name']))
+    model.eval()
+    return config, model
+
+
+config, model = load_model('矿石图像分割_NestedUNet_woDS')
+val_transform = Compose([
+        albumentations.Resize(config['input_h'], config['input_w']),
+        albumentations.Normalize(),
+        ])
+
+
+def compute_an_image(filename):
+    Image.open(filename).show()
+
+    img = np.expand_dims(np.array(Image.open(filename)), -1)
+    img = np.repeat(img, 3, -1)
+    img = val_transform(image=img)
+    img = np.transpose(img['image'], [2, 0, 1])[:1, :, :].astype(float) / 255
+
+    with torch.no_grad():
+            print(f'Start make inference om image {filename}')
+            img = torch.tensor(img).cuda().unsqueeze(0).float()
+
+            # compute output
+            if config['deep_supervision']:
+                output = model(img)[-1]
+            else:
+                output = model(img)
+
+            output = torch.sigmoid(output)
+
+            # for i in range(len(output)):
+            #     for c in range(config['num_classes']):
+            #         export_path = os.path.join('outputs', config['name'], str(c), meta['img_id'][i] + '.jpg')
+            #         img_array = (output[i, c] * 255).astype('uint8')
+            #         img = Image.fromarray(img_array)
+            #         img.save(export_path)
+            pred_mask = np.zeros([config['num_classes'], config['input_h'], config['input_w']], dtype=np.uint8)
+            pred_classes = output.squeeze().argmax(dim=0).cpu().numpy()
+            for class_id in range(config['num_classes']):
+                color_mask = pred_classes == class_id
+                color_mask = np.where(color_mask, 255, 0)
+                pred_mask[class_id] = color_mask
+
+            segmentation_img = pred_mask.transpose([1, 2, 0])
+            Image.fromarray(segmentation_img).show()
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -32,39 +98,15 @@ def parse_args():
 
 def main():
     args = parse_args()
+    model_name = args.name
 
-    with open('models/%s/config.yml' % args.name, 'r') as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-
-    print('-'*20)
-    for key in config.keys():
-        print('%s: %s' % (key, str(config[key])))
-    print('-'*20)
-
-    cudnn.benchmark = True
-
-    # create model
-    print("=> creating model %s" % config['arch'])
-    model = archs.__dict__[config['arch']](config['num_classes'],
-                                           config['input_channels'],
-                                           config['deep_supervision'])
-
-    model = model.cuda()
+    config, model = load_model(model_name)
 
     # Data loading code
     img_ids = glob(os.path.join('inputs', config['dataset'], 'JPEGImages', '*' + config['img_ext']))
     img_ids = [os.path.splitext(os.path.basename(p))[0] for p in img_ids]
 
     _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
-
-    model.load_state_dict(torch.load('models/%s/model.pth' %
-                                     config['name']))
-    model.eval()
-
-    val_transform = Compose([
-        albumentations.Resize(config['input_h'], config['input_w']),
-        albumentations.Normalize(),
-    ])
 
     val_dataset = Dataset(
         img_ids=val_img_ids,

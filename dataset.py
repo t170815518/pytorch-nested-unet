@@ -60,7 +60,7 @@ class Dataset(torch.utils.data.Dataset):
 
         mask = []
         for i in range(self.num_classes):
-            mask_path = os.path.join(self.mask_dir, img_id + self.mask_ext) # e.g., inputs/矿石图像分割/Annotations/1563.png
+            mask_path = os.path.join(self.mask_dir, str(i), img_id + self.mask_ext) # e.g., inputs/矿石图像分割/Annotations/1563.png
             assert os.path.exists(mask_path), f'Mask path {mask_path} does not exist.'
             # m = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
             m = np.array(Image.open(mask_path))
