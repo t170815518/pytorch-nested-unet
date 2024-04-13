@@ -34,7 +34,7 @@ def load_model(model_name):
     model = archs.__dict__[config['arch']](config['num_classes'],
                                            config['input_channels'],
                                            config['deep_supervision'])
-    model = model.cuda()
+    # model = model.cuda()
     model.load_state_dict(torch.load('models/%s/model.pth' %
                                      config['name']))
     model.eval()
@@ -58,7 +58,8 @@ def compute_an_image(filename):
 
     with torch.no_grad():
             print(f'Start make inference om image {filename}')
-            img = torch.tensor(img).cuda().unsqueeze(0).float()
+            # img = torch.tensor(img).cuda().unsqueeze(0).float()
+            img = torch.tensor(img).unsqueeze(0).float()
 
             # compute output
             if config['deep_supervision']:
@@ -129,8 +130,8 @@ def main():
         os.makedirs(os.path.join('outputs', config['name'], str(c)), exist_ok=True)
     with torch.no_grad():
         for input, target, meta in tqdm(val_loader, total=len(val_loader)):
-            input = input.cuda()
-            target = target.cuda()
+            # input = input.cuda()
+            # target = target.cuda()
 
             # compute output
             if config['deep_supervision']:
@@ -152,7 +153,7 @@ def main():
 
     print('IoU: %.4f' % avg_meter.avg)
 
-    torch.cuda.empty_cache()
+    # torch.cuda.empty_cache()
 
 
 if __name__ == '__main__':
