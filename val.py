@@ -9,6 +9,8 @@ import torch
 import torch.backends.cudnn as cudnn
 import yaml
 from PIL import Image
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei'] # Or any other Chinese charactersimport albumentations
 import albumentations
 from albumentations.augmentations import transforms
 from albumentations.core.composition import Compose
@@ -49,11 +51,9 @@ val_transform = Compose([
 
 
 def compute_an_image(filename):
-    Image.open(filename).show()
-
     img = np.expand_dims(np.array(Image.open(filename)), -1)
-    img = np.repeat(img, 3, -1)
-    img = val_transform(image=img)
+    img_ = np.repeat(img, 3, -1)
+    img = val_transform(image=img_)
     img = np.transpose(img['image'], [2, 0, 1])[:1, :, :].astype(float) / 255
 
     with torch.no_grad():
@@ -82,8 +82,15 @@ def compute_an_image(filename):
                 color_mask = np.where(color_mask, 255, 0)
                 pred_mask[class_id] = color_mask
 
-            segmentation_img = pred_mask.transpose([1, 2, 0])
-            Image.fromarray(segmentation_img).show()
+            fig, ax = plt.subplots(1, 2)
+            plt.suptitle('矿石分割结果')
+            ax[0].imshow(img_)
+            ax[0].set_title('原图')
+            ax[1].imshow(pred_mask.transpose([1, 2, 0]))
+            ax[1].set_title('分割结果')
+
+    print('Inference completes')
+    return fig
 
 
 def parse_args():

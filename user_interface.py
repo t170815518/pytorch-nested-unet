@@ -1,6 +1,11 @@
 import tkinter as tk
 import customtkinter
 from tkinter import filedialog, simpledialog, Label
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
+                                               NavigationToolbar2Tk)
 import os
 import cv2
 from PIL import ImageTk, Image
@@ -14,7 +19,18 @@ customtkinter.set_default_color_theme("blue")  # Themes: blue (default), dark-bl
 def image_inference():
     filename = filedialog.askopenfilename()  # ask the user to choose a file
     if filename:
-        compute_an_image(filename)
+        fig = compute_an_image(filename)
+
+        segmentation_displayer = customtkinter.CTk()  # create CTk window like you do with the Tk window
+        segmentation_displayer.geometry("580x380")
+        segmentation_displayer.resizable(False, False)
+        segmentation_displayer.title('矿石分割结果')
+
+        canvas = FigureCanvasTkAgg(fig, master=segmentation_displayer)  # A tk.DrawingArea.
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=None, expand=False)
+
+        segmentation_displayer.mainloop()
 
 
 root = customtkinter.CTk()  # create CTk window like you do with the Tk window
@@ -40,7 +56,5 @@ title_label.place(relx=0.5, rely=0.1, anchor='center')
 button2 = customtkinter.CTkButton(root, text="图片检测", command=image_inference, compound="left",
                                   font=FONT)
 button2.place(relx=0.5, rely=0.5, anchor='center')
-
-#
 
 root.mainloop()
