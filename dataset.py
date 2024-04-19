@@ -8,7 +8,8 @@ import torch.utils.data
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, img_ids, img_dir, mask_dir, img_ext, mask_ext, num_classes, transform=None):
+    def __init__(self, img_ids, img_dir, mask_dir, img_ext, mask_ext, num_classes, transform=None,
+                 is_single_channel: bool = True):
         """
         Args:
             img_ids (list): Image ids.
@@ -49,6 +50,7 @@ class Dataset(torch.utils.data.Dataset):
         self.mask_ext = mask_ext
         self.num_classes = num_classes
         self.transform = transform
+        self.is_single_channel = is_single_channel
 
     def __len__(self):
         return len(self.img_ids)
@@ -74,7 +76,10 @@ class Dataset(torch.utils.data.Dataset):
             mask = augmented['mask']
         
         img = img.astype('float32') / 255
-        img = img.transpose(2, 0, 1)[:1, :, :]
+        if self.is_single_channel:
+            img = img.transpose(2, 0, 1)[:1, :, :]
+        else:
+            img = img.transpose(2, 0, 1)
         mask = mask.astype('float32')
         mask = mask.transpose(2, 0, 1)
         

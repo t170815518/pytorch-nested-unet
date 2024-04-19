@@ -8,6 +8,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
+from torchvision.models.segmentation import fcn_resnet50
 import yaml
 import json
 import albumentations
@@ -23,7 +24,7 @@ from dataset import Dataset
 from metrics import iou_score
 from utils import AverageMeter, str2bool
 
-ARCH_NAMES = archs.__all__
+ARCH_NAMES = archs.__all__ + ['FCN']
 LOSS_NAMES = losses.__all__
 LOSS_NAMES.append('BCEWithLogitsLoss')
 
@@ -124,6 +125,8 @@ def train(config, train_loader, model, criterion, optimizer):
             iou = iou_score(outputs[-1], target)
         else:
             output = model(input)
+            if not isinstance(output, torch.Tensor):    # FCN has different output format
+                output = output['out']
             loss = criterion(output, target)
             iou = iou_score(output, target)
 
@@ -216,9 +219,12 @@ def main():
 
     # create model
     print("=> creating model %s" % config['arch'])
-    model = archs.__dict__[config['arch']](config['num_classes'],
-                                           config['input_channels'],
-                                           config['deep_supervision'])
+    if config['arch'] == 'FCN':
+        model = fcn_resnet50(num_classes=config['num_classes'], aux_loss=False)  # no pre-trained weights are used.
+    else:
+        model = archs.__dict__[config['arch']](config['num_classes'],
+                                               config['input_channels'],
+                                               deep_supervision=config['deep_supervision'])
 
     model = model.cuda()
 
@@ -268,6 +274,7 @@ def main():
         albumentations.Normalize(),
     ])
 
+    is_single_channel = config['arch'] != 'FCN'
     train_dataset = Dataset(
         img_ids=train_img_ids,
         img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
@@ -275,7 +282,8 @@ def main():
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
-        transform=train_transform)
+        transform=train_transform,
+        is_single_channel=is_single_channel)
     val_dataset = Dataset(
         img_ids=val_img_ids,
         img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
@@ -283,7 +291,8 @@ def main():
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
-        transform=val_transform)
+        transform=val_transform,
+        is_single_channel=is_single_channel)
 
     # store the train and test indices for evaluation
     split_info = {
