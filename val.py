@@ -136,6 +136,7 @@ def main():
     for c in range(config['num_classes']):
         os.makedirs(os.path.join('outputs', config['name'], str(c)), exist_ok=True)
     with torch.no_grad():
+        batch_counter = 0
         for input, target, meta in tqdm(val_loader, total=len(val_loader)):
             # input = input.cuda()
             # target = target.cuda()
@@ -150,6 +151,9 @@ def main():
             avg_meter.update(iou, input.size(0))
 
             output = torch.sigmoid(output).cpu().numpy()
+            output_path = os.path.join('outputs', config['name'], 'batch_{}.npy'.format(batch_counter))
+            np.save(output_path, output)
+            batch_counter += 1
 
             for i in range(len(output)):
                 for c in range(config['num_classes']):
