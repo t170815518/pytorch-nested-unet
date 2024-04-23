@@ -120,6 +120,8 @@ def train(config, train_loader, model, criterion, optimizer):
             outputs = model(input)
             loss = 0
             for output in outputs:
+                if not isinstance(output, torch.Tensor):  # FCN has different output format
+                    output = output['out']
                 loss += criterion(output, target)
             loss /= len(outputs)
             iou = iou_score(outputs[-1], target)
@@ -168,11 +170,15 @@ def validate(config, val_loader, model, criterion):
                 outputs = model(input)
                 loss = 0
                 for output in outputs:
+                    if not isinstance(output, torch.Tensor):  # FCN has different output format
+                        output = output['out']
                     loss += criterion(output, target)
                 loss /= len(outputs)
                 iou = iou_score(outputs[-1], target)
             else:
                 output = model(input)
+                if not isinstance(output, torch.Tensor):  # FCN has different output format
+                    output = output['out']
                 loss = criterion(output, target)
                 iou = iou_score(output, target)
 

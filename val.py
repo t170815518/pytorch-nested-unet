@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
+from torchvision.models.segmentation import fcn_resnet50
 import yaml
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -33,9 +34,12 @@ def load_model(model_name):
     cudnn.benchmark = True
     # create model
     print("=> creating model %s" % config['arch'])
-    model = archs.__dict__[config['arch']](config['num_classes'],
-                                           config['input_channels'],
-                                           config['deep_supervision'])
+    if config['arch'] == 'FCN':
+        model = fcn_resnet50(num_classes=config['num_classes'], aux_loss=False)  # no pre-trained weights are used.
+    else:
+        model = archs.__dict__[config['arch']](config['num_classes'],
+                                               config['input_channels'],
+                                               deep_supervision=config['deep_supervision'])
     # model = model.cuda()
     model.load_state_dict(torch.load('models/%s/model.pth' %
                                      config['name']))
@@ -43,9 +47,9 @@ def load_model(model_name):
     return config, model
 
 
-config, model = load_model('矿石图像分割_NestedUNet_woDS')
+# config, model = load_model('矿石图像分割_NestedUNet_woDS')
 val_transform = Compose([
-        albumentations.Resize(config['input_h'], config['input_w']),
+        albumentations.Resize(512, 512),
         albumentations.Normalize(),
         ])
 
@@ -116,6 +120,7 @@ def main():
 
     _, val_img_ids = train_test_split(img_ids, test_size=0.2, random_state=41)
 
+    is_single_channel = 'FCN' not in model_name
     val_dataset = Dataset(
         img_ids=val_img_ids,
         img_dir=os.path.join('inputs', config['dataset'], 'JPEGImages'),
@@ -123,7 +128,8 @@ def main():
         img_ext=config['img_ext'],
         mask_ext=config['mask_ext'],
         num_classes=config['num_classes'],
-        transform=val_transform)
+        transform=val_transform,
+        is_single_channel=is_single_channel)
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=config['batch_size'],
@@ -144,8 +150,12 @@ def main():
             # compute output
             if config['deep_supervision']:
                 output = model(input)[-1]
+                if not isinstance(output, torch.Tensor):  # FCN has different output format
+                    output = output['out']
             else:
                 output = model(input)
+                if not isinstance(output, torch.Tensor):  # FCN has different output format
+                    output = output['out']
 
             iou = iou_score(output, target)
             avg_meter.update(iou, input.size(0))
